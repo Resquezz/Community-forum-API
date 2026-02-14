@@ -19,6 +19,17 @@ namespace CommunityForum.Infrastructure.SignalR
         TopicCreated,
         TopicUpdated,
         TopicDeleted,
+
+        CategoryCreated,
+        CategoryUpdated,
+        CategoryDeleted,
+
+        TagCreated,
+        TagUpdated,
+        TagDeleted,
+
+        PostTagCreated,
+        PostTagDeleted,
         
         VoteCreated,
         VoteUpdated,

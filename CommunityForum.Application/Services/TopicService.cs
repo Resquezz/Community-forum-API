@@ -18,11 +18,14 @@ namespace CommunityForum.Application.Services
     public class TopicService : ITopicService
     {
         private readonly ITopicRepository _topicRepository;
+        private readonly ICategoryRepository _categoryRepository;
         private readonly IHubContext<ForumHub> _hubContext;
         private readonly ILogger<TopicService> _logger;
-        public TopicService(ITopicRepository topicRepository, IHubContext<ForumHub> hubContext, ILogger<TopicService> logger)
+        public TopicService(ITopicRepository topicRepository, ICategoryRepository categoryRepository,
+            IHubContext<ForumHub> hubContext, ILogger<TopicService> logger)
         {
             _topicRepository = topicRepository;
+            _categoryRepository = categoryRepository;
             _hubContext = hubContext;
             _logger = logger;
         }
@@ -44,8 +47,21 @@ namespace CommunityForum.Application.Services
                 _logger.LogError("Attempt to create topic without description.");
                 throw new ArgumentException("Topic description is required.", nameof(request.Description));
             }
+            if (request.CategoryId == Guid.Empty)
+            {
+                _logger.LogError("Attempt to create topic without category id.");
+                throw new ArgumentException("Topic category is required.", nameof(request.CategoryId));
+            }
 
-            var topic = new Topic(request.Title, request.Description);
+            var category = await _categoryRepository.GetByIdAsync(request.CategoryId);
+            if (category == null)
+            {
+                _logger.LogError("Can not find category in database. Category id: {categoryId}", request.CategoryId);
+                throw new KeyNotFoundException($"Category with id {request.CategoryId} not found.");
+            }
+
+            var topic = new Topic(request.Title, request.Description, request.CategoryId);
+            topic.Category = category;
             await _topicRepository.AddAsync(topic);
             var response = topic.ToResponse();
             await _hubContext.Clients.All.SendAsync(EventType.TopicCreated.ToString(), response);
@@ -89,6 +105,11 @@ namespace CommunityForum.Application.Services
                 _logger.LogError("Attempt to update topic description with empty. Topic id: {topicId}", request.Id);
                 throw new ArgumentException("Topic description is required.", nameof(request.Description));
             }
+            if (request.CategoryId == Guid.Empty)
+            {
+                _logger.LogError("Attempt to update topic without category id. Topic id: {topicId}", request.Id);
+                throw new ArgumentException("Topic category is required.", nameof(request.CategoryId));
+            }
 
             var topic = await _topicRepository.GetByIdAsync(request.Id);
             if (topic == null)
@@ -97,8 +118,17 @@ namespace CommunityForum.Application.Services
                 throw new KeyNotFoundException($"Topic with id {request.Id} not found.");
             }
 
+            var category = await _categoryRepository.GetByIdAsync(request.CategoryId);
+            if (category == null)
+            {
+                _logger.LogError("Can not find category in database. Category id: {categoryId}", request.CategoryId);
+                throw new KeyNotFoundException($"Category with id {request.CategoryId} not found.");
+            }
+
             topic.Title = request.Title;
             topic.Description = request.Description;
+            topic.CategoryId = request.CategoryId;
+            topic.Category = category;
 
             await _topicRepository.UpdateAsync(topic);
             var response = topic.ToResponse();

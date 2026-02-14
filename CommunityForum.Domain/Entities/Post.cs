@@ -23,5 +23,6 @@ namespace CommunityForum.Domain.Entities
         public Topic? Topic { get; set; }
         public ICollection<Vote> Votes { get; set; } = new List<Vote>();
         public ICollection<Comment> Comments { get; set; } = new List<Comment>();
+        public ICollection<PostTag> PostTags { get; set; } = new List<PostTag>();
     }
 }

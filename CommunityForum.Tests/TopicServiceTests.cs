@@ -26,16 +26,19 @@ namespace CommunityForum.Tests
         private Mock<IHubContext<ForumHub>> _hubContextMock;
         private Mock<ILogger<TopicService>> _loggerMock;
         private Mock<ITopicRepository> _topicRepositoryMock;
+        private Mock<ICategoryRepository> _categoryRepositoryMock;
         private TopicService _cut;
         [SetUp]
         public void SetUp()
         {
             _topicRepositoryMock = new Mock<ITopicRepository>();
+            _categoryRepositoryMock = new Mock<ICategoryRepository>();
             _hubContextMock = new Mock<IHubContext<ForumHub>>();
             _loggerMock = new Mock<ILogger<TopicService>>();
             _hubContextMock.Setup(hub => hub.Clients.All
                 .SendCoreAsync(It.IsAny<string>(), It.IsAny<object[]>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
-            _cut = new TopicService(_topicRepositoryMock.Object, _hubContextMock.Object, _loggerMock.Object);
+            _cut = new TopicService(_topicRepositoryMock.Object, _categoryRepositoryMock.Object,
+                _hubContextMock.Object, _loggerMock.Object);
         }
         [Test]
         public void CreateTopicAsync_ThrowsArgumentNullException_IfRequestIsNull()
@@ -68,8 +71,10 @@ namespace CommunityForum.Tests
         [Test]
         public async Task CreateTopicAsync_ReturnTopicResponse_IfCorrectRequest()
         {
-            var request = new CreateTopicRequest("title", "description");
+            var category = new Category("Backend", "Backend topics");
+            var request = new CreateTopicRequest("title", "description", category.Id);
             var expected = new TopicResponseDTO(Guid.NewGuid(), "title", "description");
+            _categoryRepositoryMock.Setup(mock => mock.GetByIdAsync(category.Id)).ReturnsAsync(category);
 
             var result = await _cut.CreateTopicAsync(request);
 
@@ -138,8 +143,10 @@ namespace CommunityForum.Tests
         [Test]
         public void UpdateTopicAsync_ThrowsKeyNotFoundException_IfTopicNotFoundInDB()
         {
+            var category = new Category("Backend", "Backend topics");
+            _categoryRepositoryMock.Setup(mock => mock.GetByIdAsync(category.Id)).ReturnsAsync(category);
             _topicRepositoryMock.Setup(repo => repo.GetByIdAsync(It.IsAny<Guid>())).ReturnsAsync((Topic)null);
-            var request = new UpdateTopicRequest(Guid.NewGuid(), "title", "description");
+            var request = new UpdateTopicRequest(Guid.NewGuid(), "title", "description", category.Id);
 
             var exception = Assert.ThrowsAsync<KeyNotFoundException>(async () => await _cut.UpdateTopicAsync(request));
             Assert.That(exception.Message, Does.StartWith($"Topic with id {request.Id} not found."));
@@ -147,12 +154,17 @@ namespace CommunityForum.Tests
         [Test]
         public async Task UpdateCommentAsync_UpdatesComment_IfCorrectRequest()
         {
-            var topic = new Topic("smth1", "smth2");
-            var request = new UpdateTopicRequest(topic.Id, "title", "description");
-            var expected = new Topic(request.Title, request.Description)
+            var category = new Category("Backend", "Backend topics");
+            var topic = new Topic("smth1", "smth2", category.Id)
+            {
+                Category = category
+            };
+            var request = new UpdateTopicRequest(topic.Id, "title", "description", category.Id);
+            var expected = new Topic(request.Title, request.Description, request.CategoryId)
             {
                 Id = topic.Id
             };
+            _categoryRepositoryMock.Setup(mock => mock.GetByIdAsync(category.Id)).ReturnsAsync(category);
             _topicRepositoryMock.Setup(repo => repo.GetByIdAsync(topic.Id)).ReturnsAsync(topic);
 
             var result = await _cut.UpdateTopicAsync(request);
