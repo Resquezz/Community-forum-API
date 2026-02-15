@@ -1,6 +1,7 @@
 using CommunityForum.Application.DTOs.RequestDTOs;
 using CommunityForum.Application.DTOs.ResponseDTOs;
 using CommunityForum.Application.Mappers;
+using CommunityForum.Application.Authorization;
 using CommunityForum.Domain.Entities;
 using CommunityForum.Domain.Interfaces;
 using CommunityForum.Infrastructure.SignalR;
@@ -20,16 +21,19 @@ namespace CommunityForum.Application.Services
         private readonly IPostRepository _postRepository;
         private readonly ITagRepository _tagRepository;
         private readonly IHubContext<ForumHub> _hubContext;
+        private readonly ForumAuthorizationService? _authorizationService;
         private readonly ILogger<PostTagService> _logger;
 
         public PostTagService(IPostTagRepository postTagRepository, IPostRepository postRepository, ITagRepository tagRepository,
-            IHubContext<ForumHub> hubContext, ILogger<PostTagService> logger)
+            IHubContext<ForumHub> hubContext, ILogger<PostTagService> logger,
+            ForumAuthorizationService? authorizationService = null)
         {
             _postTagRepository = postTagRepository;
             _postRepository = postRepository;
             _tagRepository = tagRepository;
             _hubContext = hubContext;
             _logger = logger;
+            _authorizationService = authorizationService;
         }
 
         public async Task<PostTagResponseDTO> AddPostTagAsync(CreatePostTagRequest request)
@@ -52,6 +56,7 @@ namespace CommunityForum.Application.Services
                 _logger.LogError("Attempt to create relation for non existing post. Post id: {postId}", request.PostId);
                 throw new KeyNotFoundException($"Post with id {request.PostId} not found.");
             }
+            _authorizationService?.EnsureCanManageOwnedEntity(post.UserId, "post tags");
 
             var tag = await _tagRepository.GetByIdAsync(request.TagId);
             if (tag == null)
@@ -95,6 +100,14 @@ namespace CommunityForum.Application.Services
                     request.PostId, request.TagId);
                 throw new KeyNotFoundException("Post-tag relation not found.");
             }
+
+            var post = await _postRepository.GetByIdAsync(request.PostId);
+            if (post == null)
+            {
+                _logger.LogError("Attempt to delete relation for non existing post. Post id: {postId}", request.PostId);
+                throw new KeyNotFoundException($"Post with id {request.PostId} not found.");
+            }
+            _authorizationService?.EnsureCanManageOwnedEntity(post.UserId, "post tags");
 
             await _postTagRepository.DeleteAsync(request.PostId, request.TagId);
             await _hubContext.Clients.All.SendAsync(EventType.PostTagDeleted.ToString(), new { request.PostId, request.TagId });

@@ -24,5 +24,6 @@ namespace CommunityForum.Domain.Entities
         public string Email { get; set; }
         public Role Role { get; set; }
         public ICollection<Post> Posts { get; set; } = new List<Post>();
+        public ICollection<Topic> Topics { get; set; } = new List<Topic>();
     }
 }

@@ -75,6 +75,12 @@ namespace CommunityForum.Infrastructure.Data
                 .HasForeignKey(post => post.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            modelBuilder.Entity<User>()
+                .HasMany(user => user.Topics)
+                .WithOne(topic => topic.User)
+                .HasForeignKey(topic => topic.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             modelBuilder.Entity<Category>()
                 .HasMany(category => category.Topics)
                 .WithOne(topic => topic.Category)

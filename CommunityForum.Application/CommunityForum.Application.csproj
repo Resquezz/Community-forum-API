@@ -11,6 +11,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\CommunityForum.Domain\CommunityForum.Domain.csproj" />
     <ProjectReference Include="..\CommunityForum.Infrastructure\CommunityForum.Infrastructure.csproj" />
   </ItemGroup>

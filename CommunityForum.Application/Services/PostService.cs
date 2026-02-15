@@ -2,6 +2,7 @@
 using CommunityForum.Application.DTOs.RequestDTOs;
 using CommunityForum.Application.DTOs.ResponseDTOs;
 using CommunityForum.Application.Mappers;
+using CommunityForum.Application.Authorization;
 using CommunityForum.Domain.Entities;
 using CommunityForum.Domain.Interfaces;
 using CommunityForum.Infrastructure.SignalR;
@@ -22,15 +23,17 @@ namespace CommunityForum.Application.Services
         private readonly IUserRepository _userRepository;
         private readonly ITopicRepository _topicRepository;
         private readonly IHubContext<ForumHub> _hubContext;
+        private readonly ForumAuthorizationService? _authorizationService;
         private readonly ILogger<PostService> _logger;
         public PostService(IPostRepository postRepository, IUserRepository userRepository, ITopicRepository topicRepository,
-            IHubContext<ForumHub> forumContext, ILogger<PostService> logger)
+            IHubContext<ForumHub> forumContext, ILogger<PostService> logger, ForumAuthorizationService? authorizationService = null)
         {
             _postRepository = postRepository;
             _userRepository = userRepository;
             _topicRepository = topicRepository;
             _hubContext = forumContext;
             _logger = logger;
+            _authorizationService = authorizationService;
         }
 
         public async Task<PostResponseDTO> CreatePostAsync(CreatePostRequest request)
@@ -51,6 +54,7 @@ namespace CommunityForum.Application.Services
                 _logger.LogError("Attempt to create post without user id.");
                 throw new ArgumentNullException(nameof(request.UserId), "User is required.");
             }
+            _authorizationService?.EnsureCurrentUserMatches(request.UserId);
             if (request.TopicId == Guid.Empty)
             {
                 _logger.LogError("Attempt to create post without topic id.");
@@ -88,6 +92,7 @@ namespace CommunityForum.Application.Services
                 _logger.LogError("Attempt to delete non existing post. Post id: {postId}", request.Id);
                 throw new KeyNotFoundException($"Post with id {request.Id} not found.");
             }
+            _authorizationService?.EnsureCanManageOwnedEntity(post.UserId, "post");
 
             await _postRepository.DeleteAsync(request.Id);
             await _hubContext.Clients.All.SendAsync(EventType.PostDeleted.ToString(), new { request.Id });
@@ -112,6 +117,7 @@ namespace CommunityForum.Application.Services
                 _logger.LogError("Attempt to update non existing post. Post id: {postId}", request.Id);
                 throw new KeyNotFoundException($"Post with id {request.Id} not found.");
             }
+            _authorizationService?.EnsureCanManageOwnedEntity(post.UserId, "post");
 
             var user = await _userRepository.GetByIdAsync(post.UserId);
             var topic = await _topicRepository.GetByIdAsync(post.TopicId);

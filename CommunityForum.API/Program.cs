@@ -1,5 +1,6 @@
 using CommunityForum.API.Middlewares;
 using CommunityForum.Application.Services;
+using CommunityForum.Application.Authorization;
 using CommunityForum.Domain.Interfaces;
 using CommunityForum.Infrastructure.Data;
 using CommunityForum.Infrastructure.Repositories;
@@ -65,6 +66,8 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ForumAuthorizationService>();
 builder.Services.AddSwaggerGen(options =>
 {
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme

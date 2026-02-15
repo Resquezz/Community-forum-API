@@ -2,6 +2,7 @@
 using CommunityForum.Application.DTOs.RequestDTOs;
 using CommunityForum.Application.DTOs.ResponseDTOs;
 using CommunityForum.Application.Mappers;
+using CommunityForum.Application.Authorization;
 using CommunityForum.Domain.Entities;
 using CommunityForum.Domain.Exceptions;
 using CommunityForum.Domain.Interfaces;
@@ -26,12 +27,15 @@ namespace CommunityForum.Application.Services
     {
         private readonly IUserRepository _userRepository;
         private readonly IConfiguration _configuration;
+        private readonly ForumAuthorizationService? _authorizationService;
         private readonly ILogger<UserService> _logger;
-        public UserService(IUserRepository userRepository, IConfiguration configuration, ILogger<UserService> logger)
+        public UserService(IUserRepository userRepository, IConfiguration configuration, ILogger<UserService> logger,
+            ForumAuthorizationService? authorizationService = null)
         {
             _userRepository = userRepository;
             _configuration = configuration;
             _logger = logger;
+            _authorizationService = authorizationService;
         }
         public async Task DeleteUserAsync(DeleteUserRequest request)
         {
@@ -46,6 +50,7 @@ namespace CommunityForum.Application.Services
                 _logger.LogError("Attempt to delete non existing user. User id: {userId}", request.Id);
                 throw new KeyNotFoundException($"User with id {request.Id} not found.");
             }
+            _authorizationService?.EnsureCanManageUserAccount(user.Id);
 
             await _userRepository.DeleteAsync(request.Id);
             _logger.LogInformation("User deleted successfully.");
@@ -75,6 +80,7 @@ namespace CommunityForum.Application.Services
                 _logger.LogError("Attempt to update non existing user. User id: {userId}", request.Id);
                 throw new KeyNotFoundException($"User with id {request.Id} not found.");
             }
+            _authorizationService?.EnsureCanManageUserAccount(user.Id);
 
             user.Email = request.Email;
             user.Username = request.Username;

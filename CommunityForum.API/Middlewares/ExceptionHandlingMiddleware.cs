@@ -29,6 +29,11 @@
                 context.Response.StatusCode = StatusCodes.Status400BadRequest;
                 await context.Response.WriteAsJsonAsync(new { ex.Message });
             }
+            catch(CommunityForum.Domain.Exceptions.ForbiddenException ex)
+            {
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                await context.Response.WriteAsJsonAsync(new { ex.Message });
+            }
             catch(Exception ex)
             {
                 context.Response.StatusCode = StatusCodes.Status500InternalServerError;

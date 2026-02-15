@@ -2,6 +2,7 @@
 using CommunityForum.Application.DTOs.RequestDTOs;
 using CommunityForum.Application.DTOs.ResponseDTOs;
 using CommunityForum.Application.Mappers;
+using CommunityForum.Application.Authorization;
 using CommunityForum.Domain.Entities;
 using CommunityForum.Domain.Interfaces;
 using CommunityForum.Infrastructure.SignalR;
@@ -20,14 +21,16 @@ namespace CommunityForum.Application.Services
         private readonly ITopicRepository _topicRepository;
         private readonly ICategoryRepository _categoryRepository;
         private readonly IHubContext<ForumHub> _hubContext;
+        private readonly ForumAuthorizationService? _authorizationService;
         private readonly ILogger<TopicService> _logger;
         public TopicService(ITopicRepository topicRepository, ICategoryRepository categoryRepository,
-            IHubContext<ForumHub> hubContext, ILogger<TopicService> logger)
+            IHubContext<ForumHub> hubContext, ILogger<TopicService> logger, ForumAuthorizationService? authorizationService = null)
         {
             _topicRepository = topicRepository;
             _categoryRepository = categoryRepository;
             _hubContext = hubContext;
             _logger = logger;
+            _authorizationService = authorizationService;
         }
 
         public async Task<TopicResponseDTO> CreateTopicAsync(CreateTopicRequest request)
@@ -60,7 +63,8 @@ namespace CommunityForum.Application.Services
                 throw new KeyNotFoundException($"Category with id {request.CategoryId} not found.");
             }
 
-            var topic = new Topic(request.Title, request.Description, request.CategoryId);
+            var currentUserId = _authorizationService?.GetCurrentUserId() ?? Guid.Empty;
+            var topic = new Topic(request.Title, request.Description, request.CategoryId, currentUserId);
             topic.Category = category;
             await _topicRepository.AddAsync(topic);
             var response = topic.ToResponse();
@@ -82,6 +86,7 @@ namespace CommunityForum.Application.Services
                 _logger.LogError("Attempt to delete non existing topic. Topic id: {topicId}", request.Id);
                 throw new KeyNotFoundException($"Topic with id {request.Id} not found.");
             }
+            _authorizationService?.EnsureCanManageOwnedEntity(topic.UserId, "topic");
 
             await _topicRepository.DeleteAsync(request.Id);
             await _hubContext.Clients.All.SendAsync(EventType.TopicDeleted.ToString(), new { request.Id });
@@ -117,6 +122,7 @@ namespace CommunityForum.Application.Services
                 _logger.LogError("Attempt to update non existing topic. Topic id: {topicId}", request.Id);
                 throw new KeyNotFoundException($"Topic with id {request.Id} not found.");
             }
+            _authorizationService?.EnsureCanManageOwnedEntity(topic.UserId, "topic");
 
             var category = await _categoryRepository.GetByIdAsync(request.CategoryId);
             if (category == null)

@@ -39,6 +39,7 @@ namespace CommunityForum.Infrastructure.Repositories
             return await _dbContext.Topics
                 .Include(topic => topic.Posts)
                 .Include(topic => topic.Category)
+                .Include(topic => topic.User)
                 .ToListAsync();
         }
 
@@ -47,6 +48,7 @@ namespace CommunityForum.Infrastructure.Repositories
             return await _dbContext.Topics
                 .Include(topic => topic.Posts)
                 .Include(topic => topic.Category)
+                .Include(topic => topic.User)
                 .FirstOrDefaultAsync(topic => topic.Id == id);
         }
 
