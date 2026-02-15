@@ -1,6 +1,7 @@
 using CommunityForum.Application.DTOs.RequestDTOs;
 using CommunityForum.Application.DTOs.ResponseDTOs;
 using CommunityForum.Application.Mappers;
+using CommunityForum.Application.Authorization;
 using CommunityForum.Domain.Entities;
 using CommunityForum.Domain.Interfaces;
 using CommunityForum.Infrastructure.SignalR;
@@ -18,17 +19,21 @@ namespace CommunityForum.Application.Services
     {
         private readonly ITagRepository _tagRepository;
         private readonly IHubContext<ForumHub> _hubContext;
+        private readonly ForumAuthorizationService? _authorizationService;
         private readonly ILogger<TagService> _logger;
 
-        public TagService(ITagRepository tagRepository, IHubContext<ForumHub> hubContext, ILogger<TagService> logger)
+        public TagService(ITagRepository tagRepository, IHubContext<ForumHub> hubContext,
+            ILogger<TagService> logger, ForumAuthorizationService? authorizationService = null)
         {
             _tagRepository = tagRepository;
             _hubContext = hubContext;
             _logger = logger;
+            _authorizationService = authorizationService;
         }
 
         public async Task<TagResponseDTO> CreateTagAsync(CreateTagRequest request)
         {
+            _authorizationService?.EnsureCanManageTaxonomy("tags");
             if (request == null)
             {
                 _logger.LogError("Attempt to create tag with null request instance.");
@@ -60,6 +65,7 @@ namespace CommunityForum.Application.Services
 
         public async Task DeleteTagAsync(DeleteTagRequest request)
         {
+            _authorizationService?.EnsureCanManageTaxonomy("tags");
             if (request == null)
             {
                 _logger.LogError("Attempt to delete tag with null request instance.");
@@ -112,6 +118,7 @@ namespace CommunityForum.Application.Services
 
         public async Task<TagResponseDTO> UpdateTagAsync(UpdateTagRequest request)
         {
+            _authorizationService?.EnsureCanManageTaxonomy("tags");
             if (request == null)
             {
                 _logger.LogError("Attempt to update tag with null request instance.");
