@@ -9,14 +9,22 @@ namespace CommunityForum.Domain.Entities
     public class Topic
     {
         public Topic(string title, string description)
+            : this(title, description, Guid.Empty)
+        {
+        }
+
+        public Topic(string title, string description, Guid categoryId)
         {
             Title = title ?? throw new ArgumentNullException(nameof(title));
             Description = description ?? throw new ArgumentNullException(nameof(description));
+            CategoryId = categoryId;
         }
 
         public Guid Id { get; set; } = Guid.NewGuid();
         public string Title { get; set; }
         public string Description { get; set; }
+        public Guid CategoryId { get; set; }
+        public Category? Category { get; set; }
         public ICollection<Post> Posts { get; set; } = new List<Post>();
     }
 }
