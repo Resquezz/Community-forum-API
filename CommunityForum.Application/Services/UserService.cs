@@ -89,7 +89,7 @@ namespace CommunityForum.Application.Services
             _logger.LogInformation("User updated successfully.");
             return user.ToResponse();
         }
-        public async Task<ICollection<UserResponseDTO>> GetAllUsersAsync()
+        public async Task<ICollection<UserResponseDTO>?> GetAllUsersAsync()
         {
             var users = await _userRepository.GetAllAsync();
             if(users == null)

@@ -13,7 +13,7 @@ namespace CommunityForum.Application.Mappers
         public static TopicResponseDTO ToResponse(this Topic topic)
         {
             return new TopicResponseDTO(topic.Id, topic.Title, topic.Description,
-                topic.CategoryId, topic.Category?.Name ?? string.Empty);
+                topic.CategoryId, topic.Category?.Name ?? string.Empty, topic.CreatedAt);
         }
     }
 }

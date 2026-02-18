@@ -126,6 +126,7 @@ namespace CommunityForum.Application.Services
             _authorizationService?.EnsureCanManageOwnedEntity(vote.UserId, "vote");
 
             vote.VoteType = request.VoteType;
+            vote.VotedAt = DateTime.UtcNow;
             await _voteRepository.UpdateAsync(vote);
             var response = vote.ToResponse();
             await _hubContext.Clients.All.SendAsync(EventType.VoteUpdated.ToString(), response);

@@ -12,7 +12,8 @@ namespace CommunityForum.Application.Mappers
     {
         public static VoteResponseDTO ToResponse(this Vote vote)
         {
-            return new VoteResponseDTO(vote.Id, vote.UserId, vote.PostId, vote.CommentId, vote.VoteType);
+            return new VoteResponseDTO(vote.Id, vote.UserId, vote.PostId, vote.CommentId, vote.VoteType,
+                vote.VotedAt, vote.NumericValue);
         }
     }
 }

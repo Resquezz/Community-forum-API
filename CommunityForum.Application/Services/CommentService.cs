@@ -134,6 +134,7 @@ namespace CommunityForum.Application.Services
             }
 
             comment.Content = request.Content;
+            comment.UpdatedAt = DateTime.UtcNow;
             await _commentRepository.UpdateAsync(comment);
             var response = comment.ToResponse();
             await _hubContext.Clients.All.SendAsync(EventType.CommentUpdated.ToString(), response);

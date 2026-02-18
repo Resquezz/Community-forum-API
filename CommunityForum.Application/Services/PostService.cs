@@ -130,6 +130,7 @@ namespace CommunityForum.Application.Services
             }
 
             post.Content = request.Content;
+            post.UpdatedAt = DateTime.UtcNow;
             await _postRepository.UpdateAsync(post);
 
             var response = post.ToResponse(user!, topic!);
