@@ -8,7 +8,8 @@ namespace CommunityForum.Application.DTOs.ResponseDTOs
 {
     public class PostResponseDTO
     {
-        public PostResponseDTO(Guid id, string content, Guid userId, string username, Guid topicId, string topicTitle)
+        public PostResponseDTO(Guid id, string content, Guid userId, string username, Guid topicId, string topicTitle,
+            DateTime createdAt = default, int upvotesCount = 0, int downvotesCount = 0, int score = 0, int commentsCount = 0)
         {
             Id = id;
             Content = content;
@@ -16,6 +17,11 @@ namespace CommunityForum.Application.DTOs.ResponseDTOs
             Username = username;
             TopicId = topicId;
             TopicTitle = topicTitle;
+            CreatedAt = createdAt == default ? DateTime.UtcNow : createdAt;
+            UpvotesCount = upvotesCount;
+            DownvotesCount = downvotesCount;
+            Score = score;
+            CommentsCount = commentsCount;
         }
 
         public Guid Id { get; set; }
@@ -24,16 +30,25 @@ namespace CommunityForum.Application.DTOs.ResponseDTOs
         public string Username { get; set; }
         public Guid TopicId { get; set; }
         public string TopicTitle { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public int UpvotesCount { get; set; }
+        public int DownvotesCount { get; set; }
+        public int Score { get; set; }
+        public int CommentsCount { get; set; }
         public override bool Equals(object? obj)
         {
             if(obj is not PostResponseDTO other)
                 return false;
             return Id == other.Id && Content == other.Content && UserId == other.UserId
-                && Username == other.Username && TopicId == other.TopicId && TopicTitle == other.TopicTitle;
+                && Username == other.Username && TopicId == other.TopicId && TopicTitle == other.TopicTitle
+                && CreatedAt == other.CreatedAt && UpvotesCount == other.UpvotesCount
+                && DownvotesCount == other.DownvotesCount && Score == other.Score
+                && CommentsCount == other.CommentsCount;
         }
         public override int GetHashCode()
         {
-            return HashCode.Combine(Id, Content, UserId, Username, TopicId, TopicTitle);
+            return HashCode.Combine(Id, Content, UserId, Username, TopicId, TopicTitle,
+                CreatedAt, UpvotesCount);
         }
     }
 }

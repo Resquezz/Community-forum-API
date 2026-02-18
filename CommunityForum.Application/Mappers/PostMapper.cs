@@ -12,7 +12,8 @@ namespace CommunityForum.Application.Mappers
     {
         public static PostResponseDTO ToResponse(this Post post, User user, Topic topic)
         {
-            return new PostResponseDTO(post.Id, post.Content, user.Id, user.Username, topic.Id, topic.Title);
+            return new PostResponseDTO(post.Id, post.Content, user.Id, user.Username, topic.Id, topic.Title,
+                post.CreatedAt, post.UpvotesCount, post.DownvotesCount, post.Score, post.CommentsCount);
         }
     }
 }

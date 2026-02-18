@@ -15,7 +15,7 @@ namespace CommunityForum.Application.Services
         Task<string?> LoginUserAsync(LoginUserRequest request);
         Task<UserResponseDTO> UpdateUserAsync(UpdateUserRequest request);
         Task DeleteUserAsync(DeleteUserRequest request);
-        Task<ICollection<UserResponseDTO>> GetAllUsersAsync();
+        Task<ICollection<UserResponseDTO>?> GetAllUsersAsync();
         Task<UserResponseDTO> GetUserById(Guid id);
     }
 }

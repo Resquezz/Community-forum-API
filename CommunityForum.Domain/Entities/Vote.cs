@@ -24,5 +24,7 @@ namespace CommunityForum.Domain.Entities
         public Guid? CommentId { get; set; }
         public Comment? Comment { get; set; }
         public VoteType VoteType { get; set; }
+        public DateTime VotedAt { get; set; } = DateTime.UtcNow;
+        public int NumericValue => VoteType == VoteType.UpVote ? 1 : -1;
     }
 }
