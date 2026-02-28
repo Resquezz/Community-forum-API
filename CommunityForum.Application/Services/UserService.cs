@@ -27,10 +27,10 @@ namespace CommunityForum.Application.Services
     {
         private readonly IUserRepository _userRepository;
         private readonly IConfiguration _configuration;
-        private readonly ForumAuthorizationService? _authorizationService;
+        private readonly ForumAuthorizationService _authorizationService;
         private readonly ILogger<UserService> _logger;
         public UserService(IUserRepository userRepository, IConfiguration configuration, ILogger<UserService> logger,
-            ForumAuthorizationService? authorizationService = null)
+            ForumAuthorizationService authorizationService)
         {
             _userRepository = userRepository;
             _configuration = configuration;
@@ -50,7 +50,7 @@ namespace CommunityForum.Application.Services
                 _logger.LogError("Attempt to delete non existing user. User id: {userId}", request.Id);
                 throw new KeyNotFoundException($"User with id {request.Id} not found.");
             }
-            _authorizationService?.EnsureCanManageUserAccount(user.Id);
+            _authorizationService.EnsureCanManageUserAccount(user.Id);
 
             await _userRepository.DeleteAsync(request.Id);
             _logger.LogInformation("User deleted successfully.");
@@ -80,7 +80,7 @@ namespace CommunityForum.Application.Services
                 _logger.LogError("Attempt to update non existing user. User id: {userId}", request.Id);
                 throw new KeyNotFoundException($"User with id {request.Id} not found.");
             }
-            _authorizationService?.EnsureCanManageUserAccount(user.Id);
+            _authorizationService.EnsureCanManageUserAccount(user.Id);
 
             user.Email = request.Email;
             user.Username = request.Username;

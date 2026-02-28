@@ -22,10 +22,10 @@ namespace CommunityForum.Application.Services
         private readonly IPostRepository _postRepository;
         private readonly IUserRepository _userRepository;
         private readonly IHubContext<ForumHub> _hubContext;
-        private readonly ForumAuthorizationService? _authorizationService;
+        private readonly ForumAuthorizationService _authorizationService;
         private readonly ILogger<CommentService> _logger;
         public CommentService(ICommentRepository commentRepository, IPostRepository postRepository, IUserRepository userRepository,
-            IHubContext<ForumHub> hubContext, ILogger<CommentService> logger, ForumAuthorizationService? authorizationService = null)
+            IHubContext<ForumHub> hubContext, ILogger<CommentService> logger, ForumAuthorizationService authorizationService)
         {
             _commentRepository = commentRepository;
             _postRepository = postRepository;
@@ -54,7 +54,7 @@ namespace CommunityForum.Application.Services
                     "{parentCommentId}", request.PostId, request.ParentCommentId);
                 throw new ArgumentNullException(nameof(request.UserId), "User is required.");
             }
-            _authorizationService?.EnsureCurrentUserMatches(request.UserId);
+            _authorizationService.EnsureCurrentUserMatches(request.UserId);
             if (request.PostId == Guid.Empty)
             {
                 _logger.LogError("Attempt to create comment without post id. User id: {userId}, parent comment id: " +
@@ -105,7 +105,7 @@ namespace CommunityForum.Application.Services
                 _logger.LogError("Attempt to delete non existing comment. Comment id: {commentId}", request.Id);
                 throw new KeyNotFoundException($"Comment with id {request.Id} not found.");
             }
-            _authorizationService?.EnsureCanManageOwnedEntity(comment.UserId, "comment");
+            _authorizationService.EnsureCanManageOwnedEntity(comment.UserId, "comment");
 
             await _commentRepository.DeleteAsync(request.Id);
             await _hubContext.Clients.All.SendAsync(EventType.CommentDeleted.ToString(), new { request.Id });
@@ -125,7 +125,7 @@ namespace CommunityForum.Application.Services
                 _logger.LogError("Attempt to update non existing comment. Comment id: {commentId}", request.Id);
                 throw new KeyNotFoundException($"Comment with id {request.Id} not found.");
             }
-            _authorizationService?.EnsureCanManageOwnedEntity(comment.UserId, "comment");
+            _authorizationService.EnsureCanManageOwnedEntity(comment.UserId, "comment");
 
             if (string.IsNullOrWhiteSpace(request.Content))
             {
