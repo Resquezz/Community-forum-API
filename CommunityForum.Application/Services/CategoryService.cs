@@ -21,14 +21,16 @@ namespace CommunityForum.Application.Services
         private readonly IHubContext<ForumHub> _hubContext;
         private readonly ForumAuthorizationService _authorizationService;
         private readonly ILogger<CategoryService> _logger;
+        private readonly IUnitOfWork _unitOfWork;
 
         public CategoryService(ICategoryRepository categoryRepository, IHubContext<ForumHub> hubContext,
-            ILogger<CategoryService> logger, ForumAuthorizationService authorizationService)
+            ILogger<CategoryService> logger, ForumAuthorizationService authorizationService, IUnitOfWork unitOfWork)
         {
             _categoryRepository = categoryRepository;
             _hubContext = hubContext;
             _logger = logger;
             _authorizationService = authorizationService;
+            _unitOfWork = unitOfWork;
         }
 
         public async Task<CategoryResponseDTO> CreateCategoryAsync(CreateCategoryRequest request)
@@ -59,13 +61,25 @@ namespace CommunityForum.Application.Services
                 throw new InvalidOperationException($"Category '{normalizedName}' already exists.");
             }
 
-            var category = new Category(normalizedName, request.Description.Trim());
-            await _categoryRepository.AddAsync(category);
+            await _unitOfWork.BeginTransactionAsync();
+            try
+            {
+                var category = new Category(normalizedName, request.Description.Trim());
+                await _categoryRepository.AddAsync(category);
 
-            var response = category.ToResponse();
-            await _hubContext.Clients.All.SendAsync(EventType.CategoryCreated.ToString(), response);
-            _logger.LogInformation("Category created successfully.");
-            return response;
+                var response = category.ToResponse();
+                await _hubContext.Clients.All.SendAsync(EventType.CategoryCreated.ToString(), response);
+
+                await _unitOfWork.CommitTransactionAsync();
+                _logger.LogInformation("Category created successfully.");
+                return response;
+            }
+            catch (Exception ex)
+            {
+                await _unitOfWork.RollbackTransactionAsync();
+                _logger.LogError(ex, "Error occurred while creating category. Transaction rolled back.");
+                throw;
+            }
         }
 
         public async Task DeleteCategoryAsync(DeleteCategoryRequest request)
@@ -84,9 +98,20 @@ namespace CommunityForum.Application.Services
                 throw new KeyNotFoundException($"Category with id {request.Id} not found.");
             }
 
-            await _categoryRepository.DeleteAsync(request.Id);
-            await _hubContext.Clients.All.SendAsync(EventType.CategoryDeleted.ToString(), new { request.Id });
-            _logger.LogInformation("Category deleted successfully.");
+            await _unitOfWork.BeginTransactionAsync();
+            try
+            {
+                await _categoryRepository.DeleteAsync(request.Id);
+                await _hubContext.Clients.All.SendAsync(EventType.CategoryDeleted.ToString(), new { request.Id });
+                await _unitOfWork.CommitTransactionAsync();
+                _logger.LogInformation("Category deleted successfully.");
+            }
+            catch (Exception ex)
+            {
+                await _unitOfWork.RollbackTransactionAsync();
+                _logger.LogError(ex, "Error occurred while deleting category. Transaction rolled back.");
+                throw;
+            }
         }
 
         public async Task<ICollection<CategoryResponseDTO>?> GetAllCategoriesAsync()
@@ -156,14 +181,25 @@ namespace CommunityForum.Application.Services
                 throw new InvalidOperationException($"Category '{normalizedName}' already exists.");
             }
 
-            category.Name = normalizedName;
-            category.Description = request.Description.Trim();
-            await _categoryRepository.UpdateAsync(category);
+            await _unitOfWork.BeginTransactionAsync();
+            try
+            {
+                category.Name = normalizedName;
+                category.Description = request.Description.Trim();
+                await _categoryRepository.UpdateAsync(category);
 
-            var response = category.ToResponse();
-            await _hubContext.Clients.All.SendAsync(EventType.CategoryUpdated.ToString(), response);
-            _logger.LogInformation("Category updated successfully.");
-            return response;
+                var response = category.ToResponse();
+                await _hubContext.Clients.All.SendAsync(EventType.CategoryUpdated.ToString(), response);
+                await _unitOfWork.CommitTransactionAsync();
+                _logger.LogInformation("Category updated successfully.");
+                return response;
+            }
+            catch (Exception ex)
+            {
+                await _unitOfWork.RollbackTransactionAsync();
+                _logger.LogError(ex, "Error occurred while updating category. Transaction rolled back.");
+                throw;
+            }
         }
     }
 }
