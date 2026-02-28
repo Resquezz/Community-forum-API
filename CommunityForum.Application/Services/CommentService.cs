@@ -22,10 +22,10 @@ namespace CommunityForum.Application.Services
         private readonly IPostRepository _postRepository;
         private readonly IUserRepository _userRepository;
         private readonly IHubContext<ForumHub> _hubContext;
-        private readonly ForumAuthorizationService _authorizationService;
+        private readonly IForumAuthorizationService _authorizationService;
         private readonly ILogger<CommentService> _logger;
         public CommentService(ICommentRepository commentRepository, IPostRepository postRepository, IUserRepository userRepository,
-            IHubContext<ForumHub> hubContext, ILogger<CommentService> logger, ForumAuthorizationService authorizationService)
+            IHubContext<ForumHub> hubContext, ILogger<CommentService> logger, IForumAuthorizationService authorizationService)
         {
             _commentRepository = commentRepository;
             _postRepository = postRepository;
@@ -42,33 +42,29 @@ namespace CommunityForum.Application.Services
                 _logger.LogError("Attempt to create comment with null request instance.");
                 throw new ArgumentNullException(nameof(request), "Create comment request can not be null.");
             }
+
+            var currentUserId = _authorizationService.GetCurrentUserId();
+
             if(string.IsNullOrWhiteSpace(request.Content))
             {
                 _logger.LogError("Attempt to create comment without content. User id: {userId}, post id: {postId}, " +
-                    "parent comment id: {parentCommentId}", request.UserId, request.PostId, request.ParentCommentId);
+                    "parent comment id: {parentCommentId}", currentUserId, request.PostId, request.ParentCommentId);
                 throw new ArgumentException("Comment content is required.", nameof(request.Content));
             }
-            if(request.UserId == Guid.Empty)
-            {
-                _logger.LogError("Attempt to create comment without user id. Post id: {postId}, parent comment id: " +
-                    "{parentCommentId}", request.PostId, request.ParentCommentId);
-                throw new ArgumentNullException(nameof(request.UserId), "User is required.");
-            }
-            _authorizationService.EnsureCurrentUserMatches(request.UserId);
             if (request.PostId == Guid.Empty)
             {
                 _logger.LogError("Attempt to create comment without post id. User id: {userId}, parent comment id: " +
-                    "{parentCommentId}", request.UserId, request.ParentCommentId);
+                    "{parentCommentId}", currentUserId, request.ParentCommentId);
                 throw new ArgumentNullException(nameof(request.PostId), "Post is required.");
             }
 
             var post = await _postRepository.GetByIdAsync(request.PostId);
-            var user = await _userRepository.GetByIdAsync(request.UserId);
+            var user = await _userRepository.GetByIdAsync(currentUserId);
 
             if(post == null || user == null)
             {
                 _logger.LogError("Can not find user or post in database. User id: {userId}, post id: {postId}, parent comment " +
-                    "id: {parentCommentId}", request.UserId, request.PostId, request.ParentCommentId);
+                    "id: {parentCommentId}", currentUserId, request.PostId, request.ParentCommentId);
                 throw new KeyNotFoundException("Can not find user or post.");
             }
 

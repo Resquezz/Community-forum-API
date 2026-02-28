@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace CommunityForum.Application.Authorization
 {
-    public class ForumAuthorizationService
+    public class ForumAuthorizationService : IForumAuthorizationService
     {
         private readonly IHttpContextAccessor _httpContextAccessor;
 
@@ -68,20 +68,6 @@ namespace CommunityForum.Application.Authorization
             if (!IsModeratorOrAdmin())
             {
                 throw new ForbiddenException($"Only moderator or admin can manage {entityName}.");
-            }
-        }
-
-        public void EnsureCurrentUserMatches(Guid userId)
-        {
-            if (IsModeratorOrAdmin())
-            {
-                return;
-            }
-
-            var currentUserId = GetCurrentUserId();
-            if (currentUserId != userId)
-            {
-                throw new ForbiddenException("You can perform this action only for your own account.");
             }
         }
 

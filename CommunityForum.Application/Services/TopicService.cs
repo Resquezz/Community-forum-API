@@ -21,10 +21,10 @@ namespace CommunityForum.Application.Services
         private readonly ITopicRepository _topicRepository;
         private readonly ICategoryRepository _categoryRepository;
         private readonly IHubContext<ForumHub> _hubContext;
-        private readonly ForumAuthorizationService _authorizationService;
+        private readonly IForumAuthorizationService _authorizationService;
         private readonly ILogger<TopicService> _logger;
         public TopicService(ITopicRepository topicRepository, ICategoryRepository categoryRepository,
-            IHubContext<ForumHub> hubContext, ILogger<TopicService> logger, ForumAuthorizationService authorizationService)
+            IHubContext<ForumHub> hubContext, ILogger<TopicService> logger, IForumAuthorizationService authorizationService)
         {
             _topicRepository = topicRepository;
             _categoryRepository = categoryRepository;

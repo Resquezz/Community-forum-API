@@ -24,11 +24,11 @@ namespace CommunityForum.Application.Services
         private readonly IPostRepository _postRepository;
         private readonly ICommentRepository _commentRepository;
         private readonly IHubContext<ForumHub> _hubContext;
-        private readonly ForumAuthorizationService _authorizationService;
+        private readonly IForumAuthorizationService _authorizationService;
         private readonly ILogger<VoteService> _logger;
         public VoteService(IUserRepository userRepository, IVoteRepository voteRepository, IPostRepository postRepository,
             ICommentRepository commentRepository, IHubContext<ForumHub> hubContext, ILogger<VoteService> logger,
-            ForumAuthorizationService authorizationService)
+            IForumAuthorizationService authorizationService)
         {
             _userRepository = userRepository;
             _voteRepository = voteRepository;
@@ -46,18 +46,20 @@ namespace CommunityForum.Application.Services
                 _logger.LogError("Attempt to create vote with null request instance.");
                 throw new ArgumentNullException(nameof(request), "Create vote request can not be null.");
             }
-            var user = await _userRepository.GetByIdAsync(request.UserId);
+
+            var currentUserId = _authorizationService.GetCurrentUserId();
+
+            var user = await _userRepository.GetByIdAsync(currentUserId);
             Post? post = null;
             Comment? comment = null;
             if (user == null)
             {
-                _logger.LogError("Attempt to create vote for non existing user. User id: {userId}", request.UserId);
-                throw new KeyNotFoundException($"User with id {request.UserId} not found.");
+                _logger.LogError("Attempt to create vote for non existing user. User id: {userId}", currentUserId);
+                throw new KeyNotFoundException($"User with id {currentUserId} not found.");
             }
-            _authorizationService.EnsureCurrentUserMatches(request.UserId);
             if(request.PostId == null && request.CommentId == null)
             {
-                _logger.LogError("Ivalid vote creation request. No postId nor commentId provided. User id: {userId}", request.UserId);
+                _logger.LogError("Ivalid vote creation request. No postId nor commentId provided. User id: {userId}", currentUserId);
                 throw new ArgumentNullException(nameof(request.PostId) + nameof(request.CommentId),
                     "Vote must be for a post or a comment.");
             }
@@ -67,7 +69,7 @@ namespace CommunityForum.Application.Services
                 if (post == null)
                 {
                     _logger.LogError("Attempt to vote for non existing post. Post id: {postId}, user id: {userId}",
-                        request.PostId, request.UserId);
+                        request.PostId, currentUserId);
                     throw new KeyNotFoundException($"Post with id {request.PostId} not found.");
                 }
             }
@@ -77,7 +79,7 @@ namespace CommunityForum.Application.Services
                 if (comment == null)
                 {
                     _logger.LogError("Attempt to vote for non existing comment. Comment id: {commentId}, user id: {userId}",
-                        request.CommentId, request.UserId);
+                        request.CommentId, currentUserId);
                     throw new KeyNotFoundException($"Comment with id {request.CommentId} not found.");
                 }
             }

@@ -27,10 +27,10 @@ namespace CommunityForum.Application.Services
     {
         private readonly IUserRepository _userRepository;
         private readonly IConfiguration _configuration;
-        private readonly ForumAuthorizationService _authorizationService;
+        private readonly IForumAuthorizationService _authorizationService;
         private readonly ILogger<UserService> _logger;
         public UserService(IUserRepository userRepository, IConfiguration configuration, ILogger<UserService> logger,
-            ForumAuthorizationService authorizationService)
+            IForumAuthorizationService authorizationService)
         {
             _userRepository = userRepository;
             _configuration = configuration;

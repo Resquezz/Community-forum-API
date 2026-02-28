@@ -17,6 +17,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using CommunityForum.Application.Mappers;
 using Azure.Core;
+using CommunityForum.Application.Authorization;
 
 namespace CommunityForum.Tests
 {
@@ -27,6 +28,7 @@ namespace CommunityForum.Tests
         private Mock<ILogger<TopicService>> _loggerMock;
         private Mock<ITopicRepository> _topicRepositoryMock;
         private Mock<ICategoryRepository> _categoryRepositoryMock;
+        private Mock<IForumAuthorizationService> _authService;
         private TopicService _cut;
         [SetUp]
         public void SetUp()
@@ -35,10 +37,12 @@ namespace CommunityForum.Tests
             _categoryRepositoryMock = new Mock<ICategoryRepository>();
             _hubContextMock = new Mock<IHubContext<ForumHub>>();
             _loggerMock = new Mock<ILogger<TopicService>>();
+            _authService = new Mock<IForumAuthorizationService>();
+            _authService.Setup(auth => auth.GetCurrentUserId()).Returns(Guid.NewGuid());
             _hubContextMock.Setup(hub => hub.Clients.All
                 .SendCoreAsync(It.IsAny<string>(), It.IsAny<object[]>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
             _cut = new TopicService(_topicRepositoryMock.Object, _categoryRepositoryMock.Object,
-                _hubContextMock.Object, _loggerMock.Object);
+                _hubContextMock.Object, _loggerMock.Object, _authService.Object);
         }
         [Test]
         public void CreateTopicAsync_ThrowsArgumentNullException_IfRequestIsNull()
