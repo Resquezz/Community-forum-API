@@ -21,10 +21,10 @@ namespace CommunityForum.Application.Services
         private readonly ITopicRepository _topicRepository;
         private readonly ICategoryRepository _categoryRepository;
         private readonly IHubContext<ForumHub> _hubContext;
-        private readonly ForumAuthorizationService? _authorizationService;
+        private readonly ForumAuthorizationService _authorizationService;
         private readonly ILogger<TopicService> _logger;
         public TopicService(ITopicRepository topicRepository, ICategoryRepository categoryRepository,
-            IHubContext<ForumHub> hubContext, ILogger<TopicService> logger, ForumAuthorizationService? authorizationService = null)
+            IHubContext<ForumHub> hubContext, ILogger<TopicService> logger, ForumAuthorizationService authorizationService)
         {
             _topicRepository = topicRepository;
             _categoryRepository = categoryRepository;
@@ -63,7 +63,7 @@ namespace CommunityForum.Application.Services
                 throw new KeyNotFoundException($"Category with id {request.CategoryId} not found.");
             }
 
-            var currentUserId = _authorizationService?.GetCurrentUserId() ?? Guid.Empty;
+            var currentUserId = _authorizationService.GetCurrentUserId();
             var topic = new Topic(request.Title, request.Description, request.CategoryId, currentUserId);
             topic.Category = category;
             await _topicRepository.AddAsync(topic);
@@ -86,7 +86,7 @@ namespace CommunityForum.Application.Services
                 _logger.LogError("Attempt to delete non existing topic. Topic id: {topicId}", request.Id);
                 throw new KeyNotFoundException($"Topic with id {request.Id} not found.");
             }
-            _authorizationService?.EnsureCanManageOwnedEntity(topic.UserId, "topic");
+            _authorizationService.EnsureCanManageOwnedEntity(topic.UserId, "topic");
 
             await _topicRepository.DeleteAsync(request.Id);
             await _hubContext.Clients.All.SendAsync(EventType.TopicDeleted.ToString(), new { request.Id });
@@ -122,7 +122,7 @@ namespace CommunityForum.Application.Services
                 _logger.LogError("Attempt to update non existing topic. Topic id: {topicId}", request.Id);
                 throw new KeyNotFoundException($"Topic with id {request.Id} not found.");
             }
-            _authorizationService?.EnsureCanManageOwnedEntity(topic.UserId, "topic");
+            _authorizationService.EnsureCanManageOwnedEntity(topic.UserId, "topic");
 
             var category = await _categoryRepository.GetByIdAsync(request.CategoryId);
             if (category == null)

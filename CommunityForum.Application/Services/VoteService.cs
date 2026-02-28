@@ -24,11 +24,11 @@ namespace CommunityForum.Application.Services
         private readonly IPostRepository _postRepository;
         private readonly ICommentRepository _commentRepository;
         private readonly IHubContext<ForumHub> _hubContext;
-        private readonly ForumAuthorizationService? _authorizationService;
+        private readonly ForumAuthorizationService _authorizationService;
         private readonly ILogger<VoteService> _logger;
         public VoteService(IUserRepository userRepository, IVoteRepository voteRepository, IPostRepository postRepository,
             ICommentRepository commentRepository, IHubContext<ForumHub> hubContext, ILogger<VoteService> logger,
-            ForumAuthorizationService? authorizationService = null)
+            ForumAuthorizationService authorizationService)
         {
             _userRepository = userRepository;
             _voteRepository = voteRepository;
@@ -54,7 +54,7 @@ namespace CommunityForum.Application.Services
                 _logger.LogError("Attempt to create vote for non existing user. User id: {userId}", request.UserId);
                 throw new KeyNotFoundException($"User with id {request.UserId} not found.");
             }
-            _authorizationService?.EnsureCurrentUserMatches(request.UserId);
+            _authorizationService.EnsureCurrentUserMatches(request.UserId);
             if(request.PostId == null && request.CommentId == null)
             {
                 _logger.LogError("Ivalid vote creation request. No postId nor commentId provided. User id: {userId}", request.UserId);
@@ -103,7 +103,7 @@ namespace CommunityForum.Application.Services
                 _logger.LogError("Attempt to delete non existing vote. Vote id: {voteId}", request.Id);
                 throw new KeyNotFoundException($"Vote with id {request.Id} not found.");
             }
-            _authorizationService?.EnsureCanManageOwnedEntity(vote.UserId, "vote");
+            _authorizationService.EnsureCanManageOwnedEntity(vote.UserId, "vote");
 
             await _voteRepository.DeleteAsync(request.Id);
             await _hubContext.Clients.All.SendAsync(EventType.VoteDeleted.ToString(), new { request.Id });
@@ -123,7 +123,7 @@ namespace CommunityForum.Application.Services
                 _logger.LogError("Attempt to update non existing vote. Vote id: {voteId}", request.Id);
                 throw new KeyNotFoundException($"Vote with id {request.Id} not found.");
             }
-            _authorizationService?.EnsureCanManageOwnedEntity(vote.UserId, "vote");
+            _authorizationService.EnsureCanManageOwnedEntity(vote.UserId, "vote");
 
             vote.VoteType = request.VoteType;
             vote.VotedAt = DateTime.UtcNow;

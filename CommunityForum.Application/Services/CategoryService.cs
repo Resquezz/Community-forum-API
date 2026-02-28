@@ -19,11 +19,11 @@ namespace CommunityForum.Application.Services
     {
         private readonly ICategoryRepository _categoryRepository;
         private readonly IHubContext<ForumHub> _hubContext;
-        private readonly ForumAuthorizationService? _authorizationService;
+        private readonly ForumAuthorizationService _authorizationService;
         private readonly ILogger<CategoryService> _logger;
 
         public CategoryService(ICategoryRepository categoryRepository, IHubContext<ForumHub> hubContext,
-            ILogger<CategoryService> logger, ForumAuthorizationService? authorizationService = null)
+            ILogger<CategoryService> logger, ForumAuthorizationService authorizationService)
         {
             _categoryRepository = categoryRepository;
             _hubContext = hubContext;
@@ -33,7 +33,7 @@ namespace CommunityForum.Application.Services
 
         public async Task<CategoryResponseDTO> CreateCategoryAsync(CreateCategoryRequest request)
         {
-            _authorizationService?.EnsureCanManageTaxonomy("categories");
+            _authorizationService.EnsureCanManageTaxonomy("categories");
             if (request == null)
             {
                 _logger.LogError("Attempt to create category with null request instance.");
@@ -70,7 +70,7 @@ namespace CommunityForum.Application.Services
 
         public async Task DeleteCategoryAsync(DeleteCategoryRequest request)
         {
-            _authorizationService?.EnsureCanManageTaxonomy("categories");
+            _authorizationService.EnsureCanManageTaxonomy("categories");
             if (request == null)
             {
                 _logger.LogError("Attempt to delete category with null request instance.");
@@ -123,7 +123,7 @@ namespace CommunityForum.Application.Services
 
         public async Task<CategoryResponseDTO> UpdateCategoryAsync(UpdateCategoryRequest request)
         {
-            _authorizationService?.EnsureCanManageTaxonomy("categories");
+            _authorizationService.EnsureCanManageTaxonomy("categories");
             if (request == null)
             {
                 _logger.LogError("Attempt to update category with null request instance.");
