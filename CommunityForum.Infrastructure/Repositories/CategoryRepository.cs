@@ -22,7 +22,6 @@ namespace CommunityForum.Infrastructure.Repositories
         public async Task AddAsync(Category category)
         {
             await _dbContext.Categories.AddAsync(category);
-            await _dbContext.SaveChangesAsync();
         }
 
         public async Task DeleteAsync(Guid id)
@@ -31,7 +30,6 @@ namespace CommunityForum.Infrastructure.Repositories
             if (category != null)
             {
                 _dbContext.Categories.Remove(category);
-                await _dbContext.SaveChangesAsync();
             }
         }
 
@@ -59,7 +57,6 @@ namespace CommunityForum.Infrastructure.Repositories
         public async Task UpdateAsync(Category category)
         {
             _dbContext.Categories.Update(category);
-            await _dbContext.SaveChangesAsync();
         }
     }
 }
