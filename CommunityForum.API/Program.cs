@@ -56,8 +56,8 @@ builder.Services.AddAuthentication(options =>
     {
         ValidateIssuer = true,
         ValidateAudience = true,
-        ValidIssuer = "AppIssuer",
-        ValidAudience = "AppAudience",
+        ValidIssuer = builder.Configuration["Jwt:Issuer"],
+        ValidAudience = builder.Configuration["Jwt:Audience"],
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key))
@@ -118,7 +118,7 @@ builder.Services.AddScoped<ITagService, TagService>();
 builder.Services.AddScoped<IPostTagService, PostTagService>();
 
 var app = builder.Build();
-Log.Information($"Serilog �����������, ������ ���������: {Environment.CurrentDirectory}");
+Log.Information($"Serilog started logging. Starting directory: {Environment.CurrentDirectory}");
 
 if (app.Environment.IsDevelopment())
 {

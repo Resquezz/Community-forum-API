@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -15,8 +16,14 @@ namespace CommunityForum.Application.DTOs.ResponseDTOs
             TagName = tagName;
         }
 
+        [Required]
         public Guid PostId { get; set; }
+
+        [Required]
         public Guid TagId { get; set; }
+
+        [Required]
+        [StringLength(100)]
         public string TagName { get; set; }
 
         public override bool Equals(object? obj)

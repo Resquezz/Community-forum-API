@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -14,7 +15,11 @@ namespace CommunityForum.Application.DTOs.ResponseDTOs
             Name = name;
         }
 
+        [Required]
         public Guid Id { get; set; }
+
+        [Required]
+        [StringLength(100)]
         public string Name { get; set; }
 
         public override bool Equals(object? obj)

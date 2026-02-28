@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -24,16 +25,40 @@ namespace CommunityForum.Application.DTOs.ResponseDTOs
             CommentsCount = commentsCount;
         }
 
+        [Required]
         public Guid Id { get; set; }
+
+        [Required]
+        [StringLength(300)]
         public string Content { get; set; }
+
+        [Required]
         public Guid UserId { get; set; }
+
+        [Required]
+        [StringLength(50, MinimumLength = 3)]
         public string Username { get; set; }
+
+        [Required]
         public Guid TopicId { get; set; }
+
+        [Required]
+        [StringLength(100)]
         public string TopicTitle { get; set; }
+
+        [Required]
         public DateTime CreatedAt { get; set; }
+
+        [Required]
         public int UpvotesCount { get; set; }
+
+        [Required]
         public int DownvotesCount { get; set; }
+
+        [Required]
         public int Score { get; set; }
+
+        [Required]
         public int CommentsCount { get; set; }
         public override bool Equals(object? obj)
         {

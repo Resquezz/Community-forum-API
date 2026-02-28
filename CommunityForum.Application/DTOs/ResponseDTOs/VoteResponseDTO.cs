@@ -2,6 +2,7 @@
 using CommunityForum.Domain.Enums;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -24,12 +25,24 @@ namespace CommunityForum.Application.DTOs.ResponseDTOs
                 : numericValue;
         }
 
+        [Required]
         public Guid Id { get; set; }
+
+        [Required]
         public Guid UserId { get; set; }
+
         public Guid? PostId { get; set; }
+
         public Guid? CommentId { get; set; }
+
+        [Required]
+        [EnumDataType(typeof(VoteType), ErrorMessage = "Such vote does not exist!")]
         public VoteType VoteType { get; set; }
+
+        [Required]
         public DateTime VotedAt { get; set; }
+
+        [Required]
         public int NumericValue { get; set; }
         public override bool Equals(object? obj)
         {
