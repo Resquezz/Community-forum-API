@@ -54,8 +54,25 @@ namespace CommunityForum.Infrastructure.Data
                 .HasMaxLength(500)
                 .IsRequired();
 
+            modelBuilder.Entity<Topic>()
+                .HasIndex(topic => new { topic.CategoryId, topic.CreatedAt });
+
             modelBuilder.Entity<PostTag>()
                 .HasKey(postTag => new { postTag.PostId, postTag.TagId });
+
+            modelBuilder.Entity<Post>()
+                .HasIndex(post => new { post.TopicId, post.CreatedAt });
+
+            modelBuilder.Entity<Comment>()
+                .HasIndex(comment => new { comment.PostId, comment.CreatedAt });
+
+            modelBuilder.Entity<User>()
+                .HasIndex(user => user.Username)
+                .IsUnique();
+
+            modelBuilder.Entity<User>()
+                .HasIndex(user => user.Email)
+                .IsUnique();
 
             modelBuilder.Entity<PostTag>()
                 .HasOne(postTag => postTag.Post)
@@ -132,6 +149,18 @@ namespace CommunityForum.Infrastructure.Data
             modelBuilder.Entity<Vote>()
                 .Property(vote => vote.VoteType)
                 .IsRequired();
+
+            modelBuilder.Entity<Vote>()
+                .ToTable(tableBuilder =>
+                {
+                    tableBuilder.HasCheckConstraint(
+                        "CK_Votes_ExactlyOneTarget",
+                        "(([PostId] IS NOT NULL AND [CommentId] IS NULL) OR ([PostId] IS NULL AND [CommentId] IS NOT NULL))");
+
+                    tableBuilder.HasCheckConstraint(
+                        "CK_Votes_VoteType_Valid",
+                        "[VoteType] IN (0, 1)");
+                });
         }
     }
 }
