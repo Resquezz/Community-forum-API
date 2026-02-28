@@ -14,6 +14,7 @@ namespace CommunityForum.Domain.Interfaces
         Task DeleteAsync(Guid id);
         Task<User?> GetByIdAsync(Guid id);
         Task<User?> GetByUsernameAsync(string username);
+        Task<User?> GetByEmailAsync(string email);
         Task<ICollection<User>> GetAllAsync();
     }
 }

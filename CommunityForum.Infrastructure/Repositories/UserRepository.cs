@@ -41,6 +41,13 @@ namespace CommunityForum.Infrastructure.Repositories
                 .ToListAsync();
         }
 
+        public async Task<User?> GetByEmailAsync(string email)
+        {
+            return await _dbContext.Users
+                .Include(user => user.Posts)
+                .FirstOrDefaultAsync(user => user.Email == email);
+        }
+
         public async Task<User?> GetByIdAsync(Guid id)
         {
             return await _dbContext.Users
