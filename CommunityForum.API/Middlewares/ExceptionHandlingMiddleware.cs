@@ -1,4 +1,6 @@
-﻿namespace CommunityForum.API.Middlewares
+﻿using CommunityForum.Domain.Exceptions;
+
+namespace CommunityForum.API.Middlewares
 {
     public class ExceptionHandlingMiddleware
     {
@@ -14,7 +16,17 @@
             {
                 await _next(context);
             }
-            catch(KeyNotFoundException ex)
+            catch(UsernameAlreadyExistsException ex)
+            {
+                context.Response.StatusCode = StatusCodes.Status409Conflict;
+                await context.Response.WriteAsJsonAsync(new { ex.Message });
+            }
+            catch(EmailAlreadyExistsException ex)
+            {
+                context.Response.StatusCode = StatusCodes.Status409Conflict;
+                await context.Response.WriteAsJsonAsync(new { ex.Message });
+            }
+            catch (KeyNotFoundException ex)
             {
                 context.Response.StatusCode = StatusCodes.Status404NotFound;
                 await context.Response.WriteAsJsonAsync(new { ex.Message });

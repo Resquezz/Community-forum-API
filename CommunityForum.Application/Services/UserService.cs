@@ -124,12 +124,23 @@ namespace CommunityForum.Application.Services
                 _logger.LogError("Attempt to register user with null request instance.");
                 throw new ArgumentNullException(nameof(request), "Register user request can not be null.");
             }
+
+            request.Email = request.Email.Trim().ToLower();
+
             var existingUser = await _userRepository.GetByUsernameAsync(request.Username);
             if (existingUser != null)
             {
                 _logger.LogError("Attempt to register under a taken username. Username: {username}", request.Username);
                 throw new UsernameAlreadyExistsException(request.Username);
             }
+
+            existingUser = await _userRepository.GetByEmailAsync(request.Email);
+            if (existingUser != null)
+            {
+                _logger.LogError("Attempt to register under a taken email. Email: {email}", request.Email);
+                throw new EmailAlreadyExistsException(request.Email);
+            }
+
             var user = new User(request.Username, BCrypt.Net.BCrypt.HashPassword(request.Password), request.Email, Role.User);
 
             await _userRepository.AddAsync(user);
