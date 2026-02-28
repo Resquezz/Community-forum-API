@@ -25,6 +25,7 @@ namespace CommunityForum.Tests
         private Mock<ICategoryRepository> _categoryRepositoryMock;
         private Mock<IHubContext<ForumHub>> _hubContextMock;
         private Mock<ILogger<CategoryService>> _loggerMock;
+        private Mock<IUnitOfWork> _unitOfWorkMock;
 
         [SetUp]
         public void SetUp()
@@ -32,6 +33,7 @@ namespace CommunityForum.Tests
             _categoryRepositoryMock = new Mock<ICategoryRepository>();
             _hubContextMock = new Mock<IHubContext<ForumHub>>();
             _loggerMock = new Mock<ILogger<CategoryService>>();
+            _unitOfWorkMock = new Mock<IUnitOfWork>();
             _hubContextMock.Setup(hub => hub.Clients.All
                 .SendCoreAsync(It.IsAny<string>(), It.IsAny<object[]>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
         }
@@ -59,7 +61,8 @@ namespace CommunityForum.Tests
                 _categoryRepositoryMock.Object,
                 _hubContextMock.Object,
                 _loggerMock.Object,
-                CreateAuthorizationService(Guid.NewGuid(), Role.User));
+                CreateAuthorizationService(Guid.NewGuid(), Role.User),
+                _unitOfWorkMock.Object);
 
             var exception = Assert.ThrowsAsync<ForbiddenException>(() => cut.CreateCategoryAsync(new CreateCategoryRequest("name", "desc")));
 
@@ -74,7 +77,8 @@ namespace CommunityForum.Tests
                 _categoryRepositoryMock.Object,
                 _hubContextMock.Object,
                 _loggerMock.Object,
-                CreateAuthorizationService(Guid.NewGuid(), Role.Admin));
+                CreateAuthorizationService(Guid.NewGuid(), Role.Admin),
+                _unitOfWorkMock.Object);
 
             var result = await cut.CreateCategoryAsync(request);
 
@@ -94,7 +98,8 @@ namespace CommunityForum.Tests
                 _categoryRepositoryMock.Object,
                 _hubContextMock.Object,
                 _loggerMock.Object,
-                CreateAuthorizationService(Guid.NewGuid(), Role.Admin));
+                CreateAuthorizationService(Guid.NewGuid(), Role.Admin),
+                _unitOfWorkMock.Object);
 
             var exception = Assert.ThrowsAsync<InvalidOperationException>(() => cut.CreateCategoryAsync(request));
 

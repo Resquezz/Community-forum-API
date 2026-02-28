@@ -116,6 +116,8 @@ builder.Services.AddScoped<IVoteService, VoteService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<ITagService, TagService>();
 builder.Services.AddScoped<IPostTagService, PostTagService>();
+builder.Services.AddScoped<IForumAuthorizationService, ForumAuthorizationService>();
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
 var app = builder.Build();
 Log.Information($"Serilog started logging. Starting directory: {Environment.CurrentDirectory}");
