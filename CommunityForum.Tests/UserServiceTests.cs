@@ -20,6 +20,8 @@ using CommunityForum.Domain.Enums;
 using CommunityForum.Application.Mappers;
 using System.IdentityModel.Tokens.Jwt;
 using Azure.Core;
+using Microsoft.AspNetCore.Authorization;
+using CommunityForum.Application.Authorization;
 
 namespace CommunityForum.Tests
 {
@@ -30,6 +32,7 @@ namespace CommunityForum.Tests
         private Mock<ILogger<UserService>> _loggerMock;
         private Mock<IConfiguration> _configurationMock;
         private Mock<IUserRepository> _userRepositoryMock;
+        private Mock<IForumAuthorizationService> _authService;
         private UserService _cut;
         [SetUp]
         public void SetUp()
@@ -38,9 +41,16 @@ namespace CommunityForum.Tests
             _configurationMock = new Mock<IConfiguration>();
             _hubContextMock = new Mock<IHubContext<ForumHub>>();
             _loggerMock = new Mock<ILogger<UserService>>();
+            _authService = new Mock<IForumAuthorizationService>();
             _hubContextMock.Setup(hub => hub.Clients.All
                 .SendCoreAsync(It.IsAny<string>(), It.IsAny<object[]>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
-            _cut = new UserService(_userRepositoryMock.Object, _configurationMock.Object, _loggerMock.Object);
+            _authService.Setup(a => a.GetCurrentUserId()).Returns(Guid.NewGuid());
+            _configurationMock.Setup(mock => mock["Jwt:Issuer"]).Returns("AppIssuer");
+            _configurationMock.Setup(mock => mock["Jwt:Audience"]).Returns("AppAudience");
+            var expireMinutesSection = new Mock<IConfigurationSection>();
+            expireMinutesSection.Setup(section => section.Value).Returns("60");
+            _configurationMock.Setup(mock => mock.GetSection("Jwt:ExpireMinutes")).Returns(expireMinutesSection.Object);
+            _cut = new UserService(_userRepositoryMock.Object, _configurationMock.Object, _loggerMock.Object, _authService.Object);
         }
         [Test]
         public void RegisterUserAsync_ThrowsArgumentNullException_IfRequestIsNull()
@@ -81,7 +91,7 @@ namespace CommunityForum.Tests
             Assert.That(exception.Message, Does.StartWith("Register user request can not be null."));
         }
         [Test]
-        public async Task LoginUser_ReturnsNull_IfUsernameFoundInDB()
+        public async Task LoginUser_ReturnsNull_IfUsernameNotFoundInDB()
         {
             var request = new LoginUserRequest("username", "password");
             _userRepositoryMock.Setup(mock => mock.GetByUsernameAsync(request.Username)).ReturnsAsync((User)null);

@@ -23,10 +23,10 @@ namespace CommunityForum.Application.Services
         private readonly IUserRepository _userRepository;
         private readonly ITopicRepository _topicRepository;
         private readonly IHubContext<ForumHub> _hubContext;
-        private readonly ForumAuthorizationService _authorizationService;
+        private readonly IForumAuthorizationService _authorizationService;
         private readonly ILogger<PostService> _logger;
         public PostService(IPostRepository postRepository, IUserRepository userRepository, ITopicRepository topicRepository,
-            IHubContext<ForumHub> forumContext, ILogger<PostService> logger, ForumAuthorizationService authorizationService)
+            IHubContext<ForumHub> forumContext, ILogger<PostService> logger, IForumAuthorizationService authorizationService)
         {
             _postRepository = postRepository;
             _userRepository = userRepository;
@@ -43,30 +43,28 @@ namespace CommunityForum.Application.Services
                 _logger.LogError("Attempt to create post with null request instance.");
                 throw new ArgumentNullException(nameof(request), "Create post request can not be null.");
             }
+
+            var currentUserId = _authorizationService.GetCurrentUserId();
+
             if (string.IsNullOrWhiteSpace(request.Content))
             {
                 _logger.LogError("Attempt to create post without content. User id: {userId}, topic id: {topicId}",
-                    request.UserId, request.TopicId);
+                    currentUserId, request.TopicId);
                 throw new ArgumentException("Post content is required.", nameof(request.Content));
             }
-            if (request.UserId == Guid.Empty)
-            {
-                _logger.LogError("Attempt to create post without user id.");
-                throw new ArgumentNullException(nameof(request.UserId), "User is required.");
-            }
-            _authorizationService.EnsureCurrentUserMatches(request.UserId);
+
             if (request.TopicId == Guid.Empty)
             {
                 _logger.LogError("Attempt to create post without topic id.");
                 throw new ArgumentNullException(nameof(request.TopicId), "Topic is required.");
             }
-            var user = await _userRepository.GetByIdAsync(request.UserId);
+            var user = await _userRepository.GetByIdAsync(currentUserId);
             var topic = await _topicRepository.GetByIdAsync(request.TopicId);
 
             if (user == null || topic == null)
             {
                 _logger.LogError("Can not find user or topic in database. User id: {userId}, topic id: {topicId}",
-                    request.UserId, request.TopicId);
+                    currentUserId, request.TopicId);
                 throw new KeyNotFoundException("Can not find user or topic.");
             }
 

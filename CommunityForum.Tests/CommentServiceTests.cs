@@ -20,6 +20,8 @@ using Azure.Core;
 using System.Reflection.Metadata;
 using CommunityForum.Application.Mappers;
 using NUnit.Framework.Legacy;
+using System.Runtime.CompilerServices;
+using CommunityForum.Application.Authorization;
 
 namespace CommunityForum.Tests
 {
@@ -31,6 +33,8 @@ namespace CommunityForum.Tests
         private Mock<ICommentRepository> _commentRepositoryMock;
         private Mock<IHubContext<ForumHub>> _hubContextMock;
         private Mock<ILogger<CommentService>> _loggerMock;
+        private Mock<IForumAuthorizationService> _authService;
+        private Guid _currentUserId;
         private CommentService _cut;
         [SetUp]
         public void SetUp()
@@ -42,8 +46,11 @@ namespace CommunityForum.Tests
             _loggerMock = new Mock<ILogger<CommentService>>();
             _hubContextMock.Setup(hub => hub.Clients.All
                 .SendCoreAsync(It.IsAny<string>(), It.IsAny<object[]>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+            _authService = new Mock<IForumAuthorizationService>();
+            _currentUserId = Guid.NewGuid();
+            _authService.Setup(auth => auth.GetCurrentUserId()).Returns(() => _currentUserId);
             _cut = new CommentService(_commentRepositoryMock.Object, _postRepositoryMock.Object, _userRepositoryMock.Object,
-                _hubContextMock.Object, _loggerMock.Object);
+                _hubContextMock.Object, _loggerMock.Object, _authService.Object);
         }
         [Test]
         public void CreateCommentAsync_ThrowsArgumentNullException_IfRequestIsNull()
@@ -56,34 +63,38 @@ namespace CommunityForum.Tests
         [TestCase(" ")]
         public void CreateCommentAsync_ThrowsArgumentException_IfContentIsEmpty(string content)
         {
-            var request = new CreateCommentRequest(content, Guid.NewGuid(), Guid.NewGuid());
+            var request = new CreateCommentRequest(content, Guid.NewGuid());
 
             var exception = Assert.ThrowsAsync<ArgumentException>(async () => await _cut.CreateCommentAsync(request));
             Assert.That(exception.Message, Does.StartWith("Comment content is required."));
             Assert.That(exception.ParamName, Is.EqualTo(nameof(request.Content)));
         }
         [Test]
-        public void CreateCommentAsync_ThrowsArgumentNullException_IfUserIdIsEmpty()
+        public void CreateCommentAsync_ThrowsKeyNotFoundException_IfCurrentUserNotFoundInDB_WhenPostExists()
         {
-            var request = new CreateCommentRequest("smth", Guid.Empty, Guid.NewGuid());
+            var request = new CreateCommentRequest("smth", Guid.NewGuid());
+            _postRepositoryMock.Setup(repo => repo.GetByIdAsync(It.IsAny<Guid>()))
+                .ReturnsAsync(new Post("text", Guid.NewGuid(), Guid.NewGuid()));
+            _userRepositoryMock.Setup(repo => repo.GetByIdAsync(_currentUserId)).ReturnsAsync((User)null);
 
-            var exception = Assert.ThrowsAsync<ArgumentNullException>(async () => await _cut.CreateCommentAsync(request));
-            Assert.That(exception.Message, Does.StartWith("User is required."));
-            Assert.That(exception.ParamName, Is.EqualTo(nameof(request.UserId)));
+            var exception = Assert.ThrowsAsync<KeyNotFoundException>(async () => await _cut.CreateCommentAsync(request));
+            Assert.That(exception.Message, Does.StartWith("Can not find user or post."));
         }
         [Test]
         public void CreateCommentAsync_ThrowsArgumentNullException_IfPostIdIsEmpty()
         {
-            var request = new CreateCommentRequest("smth", Guid.NewGuid(), Guid.Empty);
+            var request = new CreateCommentRequest("smth", Guid.Empty);
 
             var exception = Assert.ThrowsAsync<ArgumentNullException>(async () => await _cut.CreateCommentAsync(request));
             Assert.That(exception.Message, Does.StartWith("Post is required."));
             Assert.That(exception.ParamName, Is.EqualTo(nameof(request.PostId)));
         }
         [Test]
-        public void CreateCommentAsync_ThrowsKeyNotFoundException_IfUserNotFoundInDB()
+        public void CreateCommentAsync_ThrowsKeyNotFoundException_IfCurrentUserNotFoundInDB()
         {
-            var request = new CreateCommentRequest("smth", Guid.NewGuid(), Guid.NewGuid());
+            var request = new CreateCommentRequest("smth", Guid.NewGuid());
+            _postRepositoryMock.Setup(repo => repo.GetByIdAsync(It.IsAny<Guid>()))
+                .ReturnsAsync(new Post("text", Guid.NewGuid(), Guid.NewGuid()));
             _userRepositoryMock.Setup(repo => repo.GetByIdAsync(It.IsAny<Guid>())).ReturnsAsync((User)null);
 
             var exception = Assert.ThrowsAsync<KeyNotFoundException>(async () => await _cut.CreateCommentAsync(request));
@@ -93,7 +104,8 @@ namespace CommunityForum.Tests
         [Test]
         public void CreateCommentAsync_ThrowsKeyNotFoundException_IfPostNotFoundInDB()
         {
-            var request = new CreateCommentRequest("smth", Guid.NewGuid(), Guid.NewGuid());
+            var request = new CreateCommentRequest("smth", Guid.NewGuid());
+            _currentUserId = Guid.NewGuid();
             _userRepositoryMock.Setup(repo => repo.GetByIdAsync(It.IsAny<Guid>()))
                 .ReturnsAsync(new User("user", "123", "email", Role.User));
             _postRepositoryMock.Setup(repo => repo.GetByIdAsync(It.IsAny<Guid>())).ReturnsAsync((Post)null);
@@ -105,7 +117,8 @@ namespace CommunityForum.Tests
         [Test]
         public void CreateCommentAsync_ThrowsKeyNotFoundException_IfParentCommentNotFoundInDB()
         {
-            var request = new CreateCommentRequest("smth", Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+            var request = new CreateCommentRequest("smth", Guid.NewGuid(), Guid.NewGuid());
+            _currentUserId = Guid.NewGuid();
             _userRepositoryMock.Setup(repo => repo.GetByIdAsync(It.IsAny<Guid>()))
                 .ReturnsAsync(new User("user", "123", "email", Role.User));
             _postRepositoryMock.Setup(repo => repo.GetByIdAsync(It.IsAny<Guid>()))
@@ -120,12 +133,12 @@ namespace CommunityForum.Tests
         public async Task CreateCommentAsync_ReturnCommentResponse_IfCorrectRequest()
         {
             var user = new User("smth", "123", "email", Role.User);
+            _currentUserId = user.Id;
             var post = new Post("smth", user.Id, Guid.NewGuid());
             var parentComment = new Comment("smth", user.Id, post.Id);
-            var request = new CreateCommentRequest("smth", user.Id, post.Id, parentComment.Id);
-            var newComment = new Comment("smth", request.UserId, request.PostId, request.ParentCommentId);
-            var expected = new CommentResponseDTO(newComment.Id, newComment.Content, newComment.UserId,
-                newComment.PostId, newComment.ParentCommentId);
+            var request = new CreateCommentRequest("smth", post.Id, parentComment.Id);
+            var expected = new CommentResponseDTO(Guid.Empty, request.Content, user.Id,
+                request.PostId, request.ParentCommentId);
 
             _userRepositoryMock.Setup(repo => repo.GetByIdAsync(It.IsAny<Guid>())).ReturnsAsync(user);
             _postRepositoryMock.Setup(repo => repo.GetByIdAsync(It.IsAny<Guid>())).ReturnsAsync(post);
@@ -135,6 +148,7 @@ namespace CommunityForum.Tests
 
             Assert.That(result, Is.Not.Null);
             Assert.That(result.UserId, Is.EqualTo(expected.UserId));
+            Assert.That(result.Content, Is.EqualTo(expected.Content));
             Assert.That(result.ParentCommentId, Is.EqualTo(expected.ParentCommentId));
             Assert.That(result.PostId, Is.EqualTo(expected.PostId));
             _userRepositoryMock.Verify(mock => mock.GetByIdAsync(user.Id), Times.Once);

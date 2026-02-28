@@ -1,4 +1,5 @@
 ﻿using Azure.Core;
+using CommunityForum.Application.Authorization;
 using CommunityForum.Application.DTOs.RequestDTOs;
 using CommunityForum.Application.DTOs.ResponseDTOs;
 using CommunityForum.Application.Mappers;
@@ -29,6 +30,8 @@ namespace CommunityForum.Tests
         private Mock<IPostRepository> _postRepositoryMock;
         private Mock<IUserRepository> _userRepositoryMock;
         private Mock<ITopicRepository> _topicRepositoryMock;
+        private Mock<IForumAuthorizationService> _authServiceMock;
+        private Guid _currentUserId;
         private PostService _cut;
         [SetUp]
         public void SetUp()
@@ -40,8 +43,11 @@ namespace CommunityForum.Tests
             _loggerMock = new Mock<ILogger<PostService>>();
             _hubContextMock.Setup(hub => hub.Clients.All
                 .SendCoreAsync(It.IsAny<string>(), It.IsAny<object[]>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+            _authServiceMock = new Mock<IForumAuthorizationService>();
+            _currentUserId = Guid.NewGuid();
+            _authServiceMock.Setup(a => a.GetCurrentUserId()).Returns(() => _currentUserId);
             _cut = new PostService(_postRepositoryMock.Object, _userRepositoryMock.Object, _topicRepositoryMock.Object,
-                _hubContextMock.Object, _loggerMock.Object);
+                _hubContextMock.Object, _loggerMock.Object, _authServiceMock.Object);
         }
         [Test]
         public void CreatePostAsync_ThrowsArgumentNullException_IfRequestIsNull()
@@ -54,34 +60,36 @@ namespace CommunityForum.Tests
         [TestCase(" ")]
         public void CreatePostAsync_ThrowsArgumentException_IfContentIsEmpty(string content)
         {
-            var request = new CreatePostRequest(content, Guid.NewGuid(), Guid.NewGuid());
+            var request = new CreatePostRequest(content, Guid.NewGuid());
 
             var exception = Assert.ThrowsAsync<ArgumentException>(async () => await _cut.CreatePostAsync(request));
             Assert.That(exception.Message, Does.StartWith("Post content is required."));
             Assert.That(exception.ParamName, Is.EqualTo(nameof(request.Content)));
         }
         [Test]
-        public void CreatePostAsync_ThrowsArgumentNullException_IfUserIdIsEmpty()
+        public void CreatePostAsync_ThrowsKeyNotFoundException_IfCurrentUserNotFoundInDB_WhenTopicExists()
         {
-            var request = new CreatePostRequest("smth", Guid.Empty, Guid.NewGuid());
+            var request = new CreatePostRequest("smth", Guid.NewGuid());
+            _topicRepositoryMock.Setup(repo => repo.GetByIdAsync(It.IsAny<Guid>()))
+                .ReturnsAsync(new Topic("title", "desc"));
+            _userRepositoryMock.Setup(repo => repo.GetByIdAsync(_currentUserId)).ReturnsAsync((User)null);
 
-            var exception = Assert.ThrowsAsync<ArgumentNullException>(async () => await _cut.CreatePostAsync(request));
-            Assert.That(exception.Message, Does.StartWith("User is required."));
-            Assert.That(exception.ParamName, Is.EqualTo(nameof(request.UserId)));
+            var exception = Assert.ThrowsAsync<KeyNotFoundException>(async () => await _cut.CreatePostAsync(request));
+            Assert.That(exception.Message, Does.StartWith("Can not find user or topic."));
         }
         [Test]
         public void CreatePostAsync_ThrowsArgumentNullException_IfTopicIdIsEmpty()
         {
-            var request = new CreatePostRequest("smth", Guid.NewGuid(), Guid.Empty);
+            var request = new CreatePostRequest("smth", Guid.Empty);
 
             var exception = Assert.ThrowsAsync<ArgumentNullException>(async () => await _cut.CreatePostAsync(request));
             Assert.That(exception.Message, Does.StartWith("Topic is required."));
             Assert.That(exception.ParamName, Is.EqualTo(nameof(request.TopicId)));
         }
         [Test]
-        public void CreatePostAsync_ThrowsKeyNotFoundException_IfUserNotFoundInDB()
+        public void CreatePostAsync_ThrowsKeyNotFoundException_IfCurrentUserNotFoundInDB()
         {
-            var request = new CreatePostRequest("smth", Guid.NewGuid(), Guid.NewGuid());
+            var request = new CreatePostRequest("smth", Guid.NewGuid());
             _userRepositoryMock.Setup(repo => repo.GetByIdAsync(It.IsAny<Guid>())).ReturnsAsync((User)null);
 
             var exception = Assert.ThrowsAsync<KeyNotFoundException>(async () => await _cut.CreatePostAsync(request));
@@ -91,7 +99,8 @@ namespace CommunityForum.Tests
         [Test]
         public void CreatePostAsync_ThrowsKeyNotFoundException_IfTopicNotFoundInDB()
         {
-            var request = new CreatePostRequest("smth", Guid.NewGuid(), Guid.NewGuid());
+            var request = new CreatePostRequest("smth", Guid.NewGuid());
+            _currentUserId = Guid.NewGuid();
             _userRepositoryMock.Setup(repo => repo.GetByIdAsync(It.IsAny<Guid>()))
                 .ReturnsAsync(new User("user", "123", "email", Role.User));
             _topicRepositoryMock.Setup(repo => repo.GetByIdAsync(It.IsAny<Guid>())).ReturnsAsync((Topic)null);
@@ -104,10 +113,11 @@ namespace CommunityForum.Tests
         public async Task CreatePostAsync_ReturnPostResponse_IfCorrectRequest()
         {
             var user = new User("smth", "123", "email", Role.User);
+            _currentUserId = user.Id;
             var topic = new Topic("smth1", "smth2");
             var post = new Post("smthContent", user.Id, topic.Id);
             var expected = new PostResponseDTO(post.Id, post.Content, post.UserId, user.Username, post.TopicId, topic.Title);
-            var request = new CreatePostRequest("smthContent", user.Id, topic.Id);
+            var request = new CreatePostRequest("smthContent", topic.Id);
             _userRepositoryMock.Setup(mock => mock.GetByIdAsync(user.Id)).ReturnsAsync(user);
             _topicRepositoryMock.Setup(mock => mock.GetByIdAsync(topic.Id)).ReturnsAsync(topic);
 
@@ -137,7 +147,7 @@ namespace CommunityForum.Tests
             Assert.That(exception.Message, Is.EqualTo($"Post with id {id} not found."));
         }
         [Test]
-        public async Task DeletePostAsync_DeletesComment_IfCorrectRequest()
+        public async Task DeletePostAsync_DeletesPost_IfCorrectRequest()
         {
             var post = new Post("smth", Guid.NewGuid(), Guid.NewGuid());
             _postRepositoryMock.Setup(repo => repo.DeleteAsync(It.IsAny<Guid>())).Returns(Task.CompletedTask);
@@ -157,7 +167,7 @@ namespace CommunityForum.Tests
         [TestCase(null)]
         [TestCase("")]
         [TestCase(" ")]
-        public void UpdateCommentAsync_ThrowsArgumentException_IfCommentContentIsEmpty(string content)
+        public void UpdatePostAsync_ThrowsArgumentException_IfPostContentIsEmpty(string content)
         {
             var id = Guid.NewGuid();
             var request = new UpdatePostRequest(id, content);

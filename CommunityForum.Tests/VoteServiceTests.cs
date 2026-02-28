@@ -1,4 +1,5 @@
 ﻿using Azure.Core;
+using CommunityForum.Application.Authorization;
 using CommunityForum.Application.DTOs.RequestDTOs;
 using CommunityForum.Application.DTOs.ResponseDTOs;
 using CommunityForum.Application.Mappers;
@@ -31,6 +32,8 @@ namespace CommunityForum.Tests
         private Mock<ICommentRepository> _commentRepositoryMock;
         private Mock<IHubContext<ForumHub>> _hubContextMock;
         private Mock<ILogger<VoteService>> _loggerMock;
+        private Mock<IForumAuthorizationService> _authService;
+        private Guid _currentUserId;
         private VoteService _cut;
         [SetUp]
         public void SetUp()
@@ -41,10 +44,13 @@ namespace CommunityForum.Tests
             _voteRepositoryMock = new Mock<IVoteRepository>();
             _postRepositoryMock = new Mock<IPostRepository>();
             _commentRepositoryMock = new Mock<ICommentRepository>();
+            _authService = new Mock<IForumAuthorizationService>();
+            _currentUserId = Guid.NewGuid();
+            _authService.Setup(a => a.GetCurrentUserId()).Returns(() => _currentUserId);
             _hubContextMock.Setup(hub => hub.Clients.All
                 .SendCoreAsync(It.IsAny<string>(), It.IsAny<object[]>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
             _cut = new VoteService(_userRepositoryMock.Object, _voteRepositoryMock.Object, _postRepositoryMock.Object,
-                _commentRepositoryMock.Object, _hubContextMock.Object, _loggerMock.Object);
+                _commentRepositoryMock.Object, _hubContextMock.Object, _loggerMock.Object, _authService.Object);
         }
         [Test]
         public void CreateVoteAsync_ThrowsArgumentNullException_IfRequestIsNull()
@@ -55,17 +61,17 @@ namespace CommunityForum.Tests
         [Test]
         public void CreateVoteAsync_ThrowsKeyNotFoundException_IfUserNotFoundInDB()
         {
-            var request = new CreateVoteRequest(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), VoteType.DownVote);
+            var request = new CreateVoteRequest(Guid.NewGuid(), Guid.NewGuid(), VoteType.DownVote);
             _userRepositoryMock.Setup(repo => repo.GetByIdAsync(It.IsAny<Guid>())).ReturnsAsync((User)null);
 
             var exception = Assert.ThrowsAsync<KeyNotFoundException>(async () => await _cut.CreateVoteAsync(request));
-            Assert.That(exception.Message, Does.StartWith($"User with id {request.UserId} not found."));
+            Assert.That(exception.Message, Does.StartWith($"User with id"));
             _userRepositoryMock.Verify(mock => mock.GetByIdAsync(It.IsAny<Guid>()), Times.Once());
         }
         [Test]
         public void CreateVoteAsync_ThrowsArgumentNullException_IfPostIdAndCommentIdIsEmpty()
         {
-            var request = new CreateVoteRequest(Guid.NewGuid(), null, null, VoteType.DownVote);
+            var request = new CreateVoteRequest(null, null, VoteType.DownVote);
             var user = new User("username", "passwordHash", "email", Role.User);
             _userRepositoryMock.Setup(repo => repo.GetByIdAsync(It.IsAny<Guid>())).ReturnsAsync(user);
 
@@ -73,10 +79,11 @@ namespace CommunityForum.Tests
             Assert.That(exception.Message, Does.StartWith("Vote must be for a post or a comment."));
         }
         [Test]
-        public void CreateVoteAsync_ThrowsKeyNotFoundException_IfPostNotFoundIdDb()
+        public void CreateVoteAsync_ThrowsKeyNotFoundException_IfPostNotFoundInDB()
         {
             var user = new User("username", "passwordHash", "email", Role.Admin);
-            var request = new CreateVoteRequest(user.Id, Guid.NewGuid(), null, VoteType.UpVote);
+            _currentUserId = user.Id;
+            var request = new CreateVoteRequest(Guid.NewGuid(), null, VoteType.UpVote);
             _userRepositoryMock.Setup(mock => mock.GetByIdAsync(user.Id)).ReturnsAsync(user);
             _postRepositoryMock.Setup(mock => mock.GetByIdAsync(It.IsAny<Guid>())).ReturnsAsync((Post)null);
 
@@ -88,7 +95,8 @@ namespace CommunityForum.Tests
         public void CreateVoteAsync_ThrowsKeyNotFoundException_IfCommentNotFoundInDB()
         {
             var user = new User("username", "passwordHash", "email", Role.User);
-            var request = new CreateVoteRequest(user.Id, null, Guid.NewGuid(), VoteType.UpVote);
+            _currentUserId = user.Id;
+            var request = new CreateVoteRequest(null, Guid.NewGuid(), VoteType.UpVote);
             _userRepositoryMock.Setup(mock => mock.GetByIdAsync(user.Id)).ReturnsAsync(user);
             _commentRepositoryMock.Setup(mock => mock.GetByIdAsync(It.IsAny<Guid>())).ReturnsAsync((Comment)null);
 
@@ -100,11 +108,12 @@ namespace CommunityForum.Tests
         public async Task CreateVoteAsync_ReturnVoteResponse_IfCorrectPostVoteRequest()
         {
             var user = new User("username", "passwordHash", "email", Role.User);
+            _currentUserId = user.Id;
             var post = new Post("content", user.Id, Guid.NewGuid());
-            var request = new CreateVoteRequest(user.Id, post.Id, null, VoteType.UpVote);
+            var request = new CreateVoteRequest(post.Id, null, VoteType.UpVote);
             _userRepositoryMock.Setup(repo => repo.GetByIdAsync(It.IsAny<Guid>())).ReturnsAsync(user);
             _postRepositoryMock.Setup(repo => repo.GetByIdAsync(It.IsAny<Guid>())).ReturnsAsync(post);
-            var vote = new Vote(request.UserId, request.VoteType, request.PostId);
+            var vote = new Vote(user.Id, request.VoteType, request.PostId);
             var expected = vote.ToResponse();
 
             var result = await _cut.CreateVoteAsync(request);
@@ -120,11 +129,12 @@ namespace CommunityForum.Tests
         public async Task CreateVoteAsync_ReturnVoteResponse_IfCorrectCommentVoteRequest()
         {
             var user = new User("username", "passwordHash", "email", Role.User);
+            _currentUserId = user.Id;
             var comment = new Comment("content", user.Id, Guid.NewGuid(), Guid.NewGuid());
-            var request = new CreateVoteRequest(user.Id, null, comment.Id, VoteType.UpVote);
+            var request = new CreateVoteRequest(null, comment.Id, VoteType.UpVote);
             _userRepositoryMock.Setup(repo => repo.GetByIdAsync(It.IsAny<Guid>())).ReturnsAsync(user);
             _commentRepositoryMock.Setup(repo => repo.GetByIdAsync(It.IsAny<Guid>())).ReturnsAsync(comment);
-            var vote = new Vote(request.UserId, request.VoteType, null, request.CommentId);
+            var vote = new Vote(user.Id, request.VoteType, null, request.CommentId);
             var expected = vote.ToResponse();
 
             var result = await _cut.CreateVoteAsync(request);

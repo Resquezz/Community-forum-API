@@ -10,16 +10,12 @@ namespace CommunityForum.Application.DTOs.RequestDTOs
 {
     public class CreateVoteRequest
     {
-        public CreateVoteRequest(Guid userId, Guid? postId, Guid? commentId, VoteType voteType)
+        public CreateVoteRequest(Guid? postId, Guid? commentId, VoteType voteType)
         {
-            UserId = userId;
             PostId = postId;
             CommentId = commentId;
             VoteType = voteType;
         }
-
-        [Required]
-        public Guid UserId { get; set; }
 
         public Guid? PostId { get; set; }
 
