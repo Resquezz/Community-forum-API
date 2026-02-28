@@ -167,11 +167,13 @@ namespace CommunityForum.Application.Services
                 ?? throw new KeyNotFoundException("Jwt key not found.")));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
+            var expireMinutes = _configuration.GetValue<int>("Jwt:ExpireMinutes", 60);
+
             var token = new JwtSecurityToken(
-                issuer: "AppIssuer",
-                audience: "AppAudience",
+                issuer: _configuration["Jwt:Issuer"],
+                audience: _configuration["Jwt:Audience"],
                 claims: claims,
-                expires: DateTime.UtcNow.AddHours(1),
+                expires: DateTime.UtcNow.AddMinutes(expireMinutes),
                 signingCredentials: creds);
             _logger.LogInformation("Security token successfully created.");
             return new JwtSecurityTokenHandler().WriteToken(token);
